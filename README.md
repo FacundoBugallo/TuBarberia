@@ -1,267 +1,109 @@
-# 💈 Barber SaaS Platform
+# TuBarberia SaaS (multi-tenant)
 
-Plataforma SaaS diseñada para barberías y peluquerías que permite gestionar turnos, clientes y operaciones del negocio desde un solo lugar.
+Proyecto base completo para gestión de barberías con reservas de turnos.
 
-El sistema está pensado para ofrecer una experiencia personalizada para cada barbería, manteniendo una única aplicación escalable (multi-tenant).
+## Stack
+- **Backend:** FastAPI + SQLAlchemy async + PostgreSQL (Supabase)
+- **DB/Auth/Storage:** Supabase
+- **Web:** Next.js (App Router)
+- **Mobile:** React Native con Expo
 
----
+## Estructura
 
-## 🚀 Características principales
+- `backend/`: API, lógica de negocio, validaciones y disponibilidad.
+- `web/`: landing dinámica por barbería (`/[slug]`) y panel admin (`/admin`).
+- `app-mobile/`: app móvil con búsqueda, persistencia de barbería y cambio de contexto.
+- `supabase/schema.sql`: SQL listo para correr en Supabase.
+- `docker/docker-compose.yml`: ejecución local del backend.
 
-* 📅 Gestión de turnos
-* 👨‍🔧 Gestión de barberos
-* 🏪 Soporte para múltiples sucursales
-* 💲 Configuración de servicios y precios
-* 🎨 Personalización de branding (logo, colores, imágenes)
-* 🔎 Búsqueda de barberías por nombre
-* 📲 Acceso mediante QR o link directo
-* 🔐 Panel de administración para negocios
-* ⚙️ Arquitectura multi-tenant
+## Multi-tenant
+Todas las entidades de dominio incluyen `business_id` (excepto `business`) y el backend filtra por `business_id` en endpoints y consultas.
 
----
+## Modelo de datos (Supabase)
+Aplicar en Supabase SQL editor:
 
-## 🧠 Concepto del sistema
-
-Esta plataforma **NO es un marketplace**.
-
-Cada barbería:
-
-* Tiene su propia “experiencia”
-* Se accede mediante link, QR o búsqueda
-* No se mezcla con otras barberías
-
----
-
-## 🏗️ Arquitectura
-
-### Backend
-
-* FastAPI (Python)
-* Supabase (PostgreSQL)
-* SQLAlchemy / asyncpg
-
-### Frontend Web
-
-* Next.js
-
-### Mobile
-
-* React Native (Expo)
-
-### Infraestructura
-
-* Supabase:
-
-  * Base de datos
-  * Autenticación
-  * Storage
-
----
-
-## 🧩 Multi-Tenant
-
-El sistema está diseñado para manejar múltiples barberías en una sola app.
-
-Cada entidad está asociada a:
-
-```
-business_id
+```sql
+-- archivo completo en supabase/schema.sql
 ```
 
-Esto permite:
+Incluye:
+- tablas: `business`, `branch`, `barber`, `service`, `schedule`, `appointment`
+- índices por `business_id`
+- `RLS` habilitado y policy inicial de lectura pública para `business`
 
-* Aislamiento total de datos
-* Escalabilidad
-* Personalización por negocio
+## Variables de entorno
+Copiar `.env.example` a `.env`.
 
----
+Variables requeridas:
+- `SUPABASE_DB_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_API_BASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `EXPO_PUBLIC_API_BASE_URL`
 
-## 📊 Modelo de datos
-
-Entidades principales:
-
-* Business (barbería)
-* Branch (sucursal)
-* Barber (barbero)
-* Service (servicio)
-* Schedule (horarios)
-* Appointment (turnos)
-
----
-
-## 🔁 Flujo de usuario
-
-### Cliente
-
-1. Busca barbería o accede por QR/link
-2. Selecciona:
-
-   * Sucursal
-   * Barbero
-   * Servicio
-3. Elige horario disponible
-4. Reserva turno
-
----
-
-### Barbero / Negocio
-
-1. Accede al panel admin
-2. Configura:
-
-   * Servicios
-   * Precios
-   * Horarios
-   * Barberos
-3. Gestiona turnos
-
----
-
-## 📱 Mobile App
-
-Pantallas principales:
-
-* Home (búsqueda + QR)
-* Barbería (datos dinámicos)
-* Reserva de turno
-
-Persistencia:
-
-* Se guarda la barbería seleccionada (AsyncStorage)
-
----
-
-## 🌐 Web
-
-* Landing dinámica por barbería
-* Ruta basada en slug:
-
-```
-/[slug]
-```
-
----
-
-## 🔐 Autenticación
-
-* Supabase Auth
-* Uso principal:
-
-  * Administradores (barberos)
-
----
-
-## 🗄️ Storage
-
-* Supabase Storage para:
-
-  * Logos
-  * Imágenes
-
----
-
-## ⚙️ Instalación (local)
-
-### 1. Clonar repositorio
-
-```bash
-git clone https://github.com/tuusuario/tu-repo.git
-cd tu-repo
-```
-
----
-
-### 2. Configurar variables de entorno
-
-Crear archivo `.env`:
-
-```
-SUPABASE_DB_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-```
-
----
-
-### 3. Backend
+## Backend
 
 ```bash
 cd backend
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload
+uvicorn app.main:app --reload
 ```
 
----
+Endpoints implementados:
+- `GET /business/search?q=`
+- `GET /business/{slug}`
+- `GET /services?business_id=`
+- `GET /barbers?business_id=`
+- `GET /branches?business_id=`
+- `POST /appointments`
+- `GET /appointments?business_id=`
+- `POST /appointments/{id}/confirm?business_id=`
+- `POST /appointments/{id}/cancel?business_id=`
 
-### 4. Frontend (Next.js)
+### Lógica de disponibilidad
+En `backend/app/services/availability.py`:
+- valida jornada de `schedule`
+- valida conflictos con turnos `pending/confirmed`
+- evita doble reserva (además de constraint único)
+
+## Web (Next.js)
 
 ```bash
-cd frontend
+cd web
 npm install
 npm run dev
 ```
 
----
+- Landing: `http://localhost:3000/[slug]`
+- Admin: `http://localhost:3000/admin` (login con Supabase Auth)
 
-### 5. Mobile (Expo)
+## Mobile (Expo)
 
 ```bash
-cd mobile
+cd app-mobile
 npm install
-npx expo start
+npm run start
 ```
 
----
+Flujos:
+- buscar barbería
+- seleccionar y persistir barbería (`AsyncStorage`)
+- entrar directo si hay barbería guardada
+- botón “Cambiar barbería”
 
-## 📌 Endpoints principales
+## Storage (Supabase)
+Crear bucket(s):
+- `logos`
+- `images`
 
-### Business
+Subida de archivos: desde frontend web/mobile vía SDK de Supabase con `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 
-* GET /business/search?q=
-* GET /business/{slug}
+## Admin panel (siguiente iteración sugerida)
+- proteger rutas por sesión
+- CRUD completo de servicios/barberos/sucursales/horarios
+- bandeja de turnos por estado
 
-### Appointments
-
-* POST /appointments
-* GET /appointments
-* POST /appointments/{id}/confirm
-* POST /appointments/{id}/cancel
-
----
-
-## ⚠️ Consideraciones importantes
-
-* No exponer lógica sensible en frontend
-* Validar disponibilidad en backend
-* Evitar doble reserva
-* Filtrar siempre por business_id
-
----
-
-## 💡 Roadmap
-
-* [ ] Pagos online
-* [ ] Notificaciones push
-* [ ] WhatsApp integration
-* [ ] Dashboard avanzado
-* [ ] Analytics de negocio
-
----
-
-## 📄 Licencia
-
-MIT License
-
----
-
-## 🤝 Contribución
-
-Pull requests son bienvenidos. Para cambios grandes, abrir primero un issue.
-
----
-
-## 📬 Contacto
-
-Para implementar el sistema en tu barbería o negocio:
-
-* Contacto directo: (tu info)
