@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ServiceOut(BaseModel):
@@ -12,6 +12,12 @@ class ServiceOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ServiceUpdate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+    duration_minutes: int = Field(..., gt=0)
+    price: float = Field(..., ge=0)
 
 
 class BarberOut(BaseModel):
