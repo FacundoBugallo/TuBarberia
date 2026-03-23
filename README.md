@@ -87,6 +87,7 @@ npm run dev
 cd app-mobile
 npm install
 npm run start
+npx expo start -c
 ```
 
 Flujos:
