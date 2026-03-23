@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime, time
+from typing import Literal
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -24,6 +25,10 @@ class Business(Base):
     description: Mapped[str | None] = mapped_column(Text)
     logo_url: Mapped[str | None] = mapped_column(Text)
     primary_color: Mapped[str | None] = mapped_column(String(20))
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    subscription_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    plan: Mapped[Literal["trial", "active", "expired"]] = mapped_column(String(20), nullable=False, default="trial")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
 

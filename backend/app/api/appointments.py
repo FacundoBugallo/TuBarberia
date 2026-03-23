@@ -8,12 +8,14 @@ from app.db.session import get_db
 from app.models.entities import Appointment, AppointmentStatus
 from app.schemas.appointment import AppointmentCreate, AppointmentOut
 from app.services.availability import ensure_slot_available
+from app.services.subscription import ensure_business_can_operate
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
 
 @router.post("", response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
 async def create_appointment(payload: AppointmentCreate, db: AsyncSession = Depends(get_db)):
+    await ensure_business_can_operate(db, payload.business_id, action="create_appointment")
     await ensure_slot_available(
         db,
         business_id=payload.business_id,
@@ -36,6 +38,7 @@ async def list_appointments(business_id: UUID = Query(...), db: AsyncSession = D
 
 @router.post("/{appointment_id}/confirm", response_model=AppointmentOut)
 async def confirm_appointment(appointment_id: UUID, business_id: UUID = Query(...), db: AsyncSession = Depends(get_db)):
+    await ensure_business_can_operate(db, business_id, action="confirm_appointment")
     result = await db.execute(
         select(Appointment).where(
             and_(Appointment.id == appointment_id, Appointment.business_id == business_id)
@@ -54,6 +57,7 @@ async def confirm_appointment(appointment_id: UUID, business_id: UUID = Query(..
 
 @router.post("/{appointment_id}/cancel", response_model=AppointmentOut)
 async def cancel_appointment(appointment_id: UUID, business_id: UUID = Query(...), db: AsyncSession = Depends(get_db)):
+    await ensure_business_can_operate(db, business_id, action="cancel_appointment")
     result = await db.execute(
         select(Appointment).where(
             and_(Appointment.id == appointment_id, Appointment.business_id == business_id)
