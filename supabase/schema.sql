@@ -8,8 +8,32 @@ create table if not exists public.business (
   description text,
   logo_url text,
   primary_color text,
+  trial_ends_at timestamptz,
+  subscription_ends_at timestamptz,
+  is_active boolean not null default true,
+  plan text not null default 'trial',
   created_at timestamptz not null default now()
 );
+
+
+alter table public.business add column if not exists trial_ends_at timestamptz;
+alter table public.business add column if not exists subscription_ends_at timestamptz;
+alter table public.business add column if not exists is_active boolean not null default true;
+alter table public.business add column if not exists plan text not null default 'trial';
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'business_plan_check'
+      and conrelid = 'public.business'::regclass
+  ) then
+    alter table public.business
+      add constraint business_plan_check check (plan in ('trial', 'active', 'expired'));
+  end if;
+end
+$$;
 
 create table if not exists public.branch (
   id uuid primary key default gen_random_uuid(),
@@ -79,3 +103,33 @@ alter table public.appointment enable row level security;
 -- Example policy stubs (customize auth mapping before production)
 create policy "public read business" on public.business
 for select using (true);
+
+
+create index if not exists idx_business_trial_ends_at on public.business (trial_ends_at);
+create index if not exists idx_business_subscription_ends_at on public.business (subscription_ends_at);
+
+create or replace function public.get_business_status(
+  p_trial_ends_at timestamptz,
+  p_subscription_ends_at timestamptz,
+  p_is_active boolean
+)
+returns text
+language sql
+stable
+as $$
+  select case
+    when not coalesce(p_is_active, false) then 'expired'
+    when p_subscription_ends_at is not null and p_subscription_ends_at >= now() then 'active'
+    when p_trial_ends_at is not null and p_trial_ends_at >= now() then 'trial'
+    else 'expired'
+  end;
+$$;
+
+create or replace view public.business_expiring_in_3_days as
+select
+  b.*,
+  coalesce(b.subscription_ends_at, b.trial_ends_at) as effective_end_at
+from public.business b
+where b.is_active = true
+  and public.get_business_status(b.trial_ends_at, b.subscription_ends_at, b.is_active) in ('trial', 'active')
+  and date(coalesce(b.subscription_ends_at, b.trial_ends_at)) = current_date + 3;

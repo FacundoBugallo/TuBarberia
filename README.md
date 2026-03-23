@@ -28,6 +28,8 @@ Aplicar en Supabase SQL editor:
 
 Incluye:
 - tablas: `business`, `branch`, `barber`, `service`, `schedule`, `appointment`
+- suscripción por barbería en `business`: `trial_ends_at`, `subscription_ends_at`, `is_active`, `plan`
+- helper SQL `public.get_business_status(...)` y vista `public.business_expiring_in_3_days`
 - índices por `business_id`
 - `RLS` habilitado y policy inicial de lectura pública para `business`
 
@@ -59,7 +61,7 @@ Endpoints implementados:
 - `GET /services?business_id=`
 - `GET /barbers?business_id=`
 - `GET /branches?business_id=`
-- `POST /appointments`
+- `POST /appointments` (bloquea creación si la barbería está vencida)
 - `GET /appointments?business_id=`
 - `POST /appointments/{id}/confirm?business_id=`
 - `POST /appointments/{id}/cancel?business_id=`
